@@ -40,8 +40,6 @@
   .btn.ln { background:#fff; color:var(--dblue); border:2px solid #c9d4ec; font-size:16px; }
   .btn[disabled] { opacity:.45; }
   .join { border:2px solid #1fa855; }
-  .counter { margin-top:12px; font-size:16px; background:rgba(255,255,255,.15); display:inline-block; padding:6px 14px; border-radius:20px; }
-  .counter b { color:#ffe228; font-size:19px; }
   .hjoin { display:inline-block; margin-top:14px; background:#fff; color:#10873c; font-weight:900; font-size:16px; padding:11px 20px; border-radius:30px; text-decoration:none; box-shadow:0 4px 12px rgba(0,0,0,.18); }
   input.bad { border-color:#d33; background:#fff3f3; }
   .msg { min-height:22px; font-size:14px; text-align:center; color:var(--green); font-weight:700; margin-top:8px; }
@@ -52,7 +50,6 @@
 <header>
   <h1>I support Sivananda Reddy. Do you?</h1>
   <p>Make your own campaign photo frame for<br><b>Busupalli Sivananda Reddy</b> – Narpala ZPTC Candidate</p>
-  <div class="counter" id="counter" hidden>🌀 <b id="cnt">0</b> supporters have made their frame</div>
   <a class="hjoin" href="https://chat.whatsapp.com/IqeoygzHvKaKFlJNN7BwVx" target="_blank" rel="noopener">👥 Join our WhatsApp group</a>
 </header>
 <main>
@@ -66,7 +63,7 @@
     <input id="name" type="text" placeholder="Your name" maxlength="24" autocomplete="name">
     <input id="village" type="text" placeholder="Your village" maxlength="26">
     <input id="mobile" type="tel" inputmode="numeric" placeholder="Your mobile number (10 digits)" maxlength="17" autocomplete="tel">
-    <p class="tip" style="text-align:left;margin:0;line-height:1.5">🔒 Your number will not be displayed on the image. By sharing or downloading, you agree that the Sivananda Reddy campaign team may save your name, village and mobile number to send you campaign updates.</p>
+    <p class="tip" style="text-align:left;margin:0">🔒 Your number will not be displayed on the image.</p>
   </div>
   <div class="card">
     <p class="step">3. Frame language</p>
@@ -119,7 +116,6 @@ const FAN = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eA
 const GROUP_LINK = 'https://chat.whatsapp.com/IqeoygzHvKaKFlJNN7BwVx';      // WhatsApp group invite, e.g. https://chat.whatsapp.com/AbCdEf123
 const CAMPAIGN_WA = '919620994964';    // campaign WhatsApp number with country code, digits only, e.g. 919876543210
 // ---------------------------------------------------
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycby9jF5Z9PfcIRMUW6tMg8IqTWiSlB2IBPaig5DhhkdI2od0tOb7KkCF9xP3uPj1Ey13/exec';        // Google Apps Script web-app URL that saves supporters to your Google Sheet
 const SHARE_TEXT = 'నేను ఫ్యాన్ కే ఓటు వేస్తా! I support Busupalli Sivananda Reddy, Narpala ZPTC candidate. Make your own photo frame here 👉 ';
 const LINES = {
   te: ['నేను ఫ్యాన్ కే ఓటు వేస్తా', 'మా ఇంటి ఓట్లు ఫ్యాన్ కే', 'మా ఊరు శివానంద రెడ్డి వెంటే', 'నేను ఓటు వేస్తా.. వేయిస్తా'],
@@ -220,21 +216,6 @@ function mobileOK() {
   if (!ok) { say('Please enter your 10-digit mobile number first'); $('mobile').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('mobile').focus(); }
   return ok ? m : null;
 }
-function saveSupporter(action, mobile) {
-  if (!SHEET_URL.startsWith('https://script.google.com/')) return;
-  const body = JSON.stringify({ name: $('name').value.trim(), village: $('village').value.trim(), mobile,
-                                action, lang, format: fmt });
-  let sent = false;
-  try { sent = navigator.sendBeacon && navigator.sendBeacon(SHEET_URL, new Blob([body], { type: 'text/plain' })); } catch (e) {}
-  if (!sent) fetch(SHEET_URL, { method: 'POST', mode: 'no-cors', body }).catch(() => {});
-  setTimeout(loadCount, 2500);
-}
-function loadCount() {
-  if (!SHEET_URL.startsWith('https://script.google.com/')) return;
-  fetch(SHEET_URL).then(r => r.json()).then(d => {
-    if (d && d.ok && d.supporters > 0) { $('cnt').textContent = d.supporters.toLocaleString('en-IN'); $('counter').hidden = false; }
-  }).catch(() => {});
-}
 let groupOpened = false;
 function showJoin() {
   const card = $('joinCard');
@@ -295,7 +276,7 @@ out.addEventListener('pointermove', e => {
 ['pointerup', 'pointercancel'].forEach(t => out.addEventListener(t, () => drag = null));
 
 $('dlBtn').onclick = async (ev) => {
-  if (!ev || !ev.fromShare) { const m = mobileOK(); if (!m) return; saveSupporter('download', m); }
+  if (!ev || !ev.fromShare) { if (!mobileOK()) return; }
   const blob = await getBlob(); const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = fileName();
   document.body.appendChild(a); a.click(); a.remove();
@@ -304,8 +285,7 @@ $('dlBtn').onclick = async (ev) => {
   showJoin();
 };
 $('shareBtn').onclick = async () => {
-  const m = mobileOK(); if (!m) return;
-  saveSupporter('share', m);
+  if (!mobileOK()) return;
   const blob = await getBlob();
   const file = new File([blob], fileName(), { type: 'image/jpeg' });
   const link = location.href.split('#')[0];
@@ -322,7 +302,6 @@ $('linkBtn').onclick = () => {
 };
 
 renderOpts();
-loadCount();
 let n = 0;
 const ready = () => { if (++n < 2) return;
   Promise.all([document.fonts.load('900 40px TE'), document.fonts.load('700 40px TE'), document.fonts.load('700 40px PP')]).then(draw, draw); draw(); };
